@@ -1,0 +1,6 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.38"  # pinned so the gas numbers are reproducible
+fs_permissions = [{ access = "read", path = "./test" }]  # tests read test/vectors.json
