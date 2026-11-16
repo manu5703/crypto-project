@@ -7,6 +7,8 @@
 - every period the contract asks Bob to show a few **random pieces** of the file,
 - if Bob shows them, he gets paid for that period; if he cannot, Alice gets his deposit and her money back.
 
+Testing, the cheating analysis and storage overhead are in **[TESTING.md](TESTING.md)**.
+
 ---
 
 ## 1. Files
@@ -18,19 +20,32 @@ offchain/provider.py      Bob: check the file, accept the deal, prove each perio
 offchain/merkle.py        the Merkle tree: cut file into pieces, hash them, build proofs, check proofs
 offchain/chain.py         helpers: start the local blockchain, deploy the contract, send transactions
 offchain/demo.py          the demo: one honest deal and one cheating deal
-offchain/bench.py         measurements: gas of each function, comparison of chunk sizes
-test/StorageMarket.t.sol  20 tests for the contract
+offchain/bench.py         gas cost of each contract function, and a comparison of chunk sizes
+offchain/analysis.py      how often a cheating Bob is caught (theory vs real deals) + detection_graph.png
+offchain/overhead.py      how much extra storage and data the system adds for a file
+test/StorageMarket.t.sol  21 tests for the contract
 test/test_offchain.py     6 tests for the Python code (Merkle tree + full deals)
-test/vectors.json         a small test tree made by merkle.py, used by both test files
-lib/forge-std/            Foundry's test library
+test/vectors.json         a small test tree written by merkle.py, used by both test files
+TESTING.md                test results, cheating analysis, storage overhead
+detection_graph.png       the graph made by analysis.py
+sample_photo.png          an example file (1.33 MB) for the demo
 foundry.toml              Foundry settings
 requirements.txt          Python packages
-DESIGN_NOTES.md           more detail on every design decision
+```
+
+Folders that are created, not written by hand:
+```
+lib/forge-std/   Foundry's test library, used by the contract tests (added with forge install)
+out/, cache/     created by `forge build` (the compiled contract); not submitted
+demo_data/       created when the demo runs: provider_inbox/ = Bob's encrypted copy,
+                 user/ = Alice's root and key; not submitted
 ```
 
 ---
 
 ## 2. How it works, step by step (and where in the code)
+
+![flowchart](image.png)
 
 ### Step 0: Start the blockchain
 `demo.py` starts a local test blockchain (anvil), where Alice and Bob each get 10,000 test ETH,
@@ -87,6 +102,7 @@ and he cannot fake them (a fake piece gives a different root). The deadline pass
   (failed in period 0: 0.08, in period 1: 0.07, in period 2: 0.06). Deal state: **Failed**.
 
 Because the deposit (0.05) is more than the whole payment (0.03), cheating always loses Bob money.
+![flowchart2](image-1.png)
 
 ---
 
@@ -94,28 +110,41 @@ Because the deposit (0.05) is more than the whole payment (0.03), cheating alway
 
 You need **Foundry** and **Python 3.10 to 3.13** (web3 does not install on 3.14 and newer).
 
+**1. Install Foundry** (once per computer), then open a new terminal:
 ```bash
-# 1. Install Foundry (once), then open a new terminal
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
+```
+If `forge` is not found later: `export PATH="$HOME/.foundry/bin:$PATH"`.
 
-# 2. Python setup (once, inside the project folder)
+**2. Set up Python** (once, inside the project folder):
+```bash
 uv venv --python 3.12 .venv
 source .venv/bin/activate
 uv pip install -r requirements.txt
+```
 
-# 3. Compile and test
+**3. Compile and test:**
+```bash
 forge build
-forge test                      # 20 passed
+forge test                      # 21 passed
 python -m pytest test           # 6 passed
+```
+If `test/vectors.json` is missing, create it with `python offchain/merkle.py`.
+If `forge-std/Test.sol` is not found, add the library with `forge install foundry-rs/forge-std --no-git`.
 
-# 4. Demo
+**4. Run the demo:**
+```bash
 python offchain/demo.py                            # 1 MB random file
 python offchain/demo.py --file sample_photo.png    # your own file
 python offchain/demo.py --cheat-fraction 0.5       # Bob deletes half the file
+```
 
-# 5. Measurements
-python offchain/bench.py
+**5. Measurements and analysis:**
+```bash
+python offchain/bench.py                            # gas per function, chunk sizes
+python offchain/analysis.py                         # cheating analysis + detection_graph.png (3-4 minutes)
+python offchain/overhead.py --file sample_photo.png # storage overhead
 ```
 
 In every new terminal, run `source .venv/bin/activate` again before the `python` commands.
@@ -141,7 +170,7 @@ If you see "something is already running on port 8545", run `pkill anvil`.
 ## 5. Measurements
 
 From `python offchain/bench.py` (1 MB file, 4 checks per period).
-*Machine: (write your machine here, e.g. MacBook, macOS, Python 3.12, Foundry 1.9.0)*
+*Machine: (write your machine here)*
 
 **Gas per function** (1024-byte chunks):
 
@@ -165,35 +194,5 @@ From `python offchain/bench.py` (1 MB file, 4 checks per period).
 Smaller chunks mean Bob sends less data, so proofs are cheaper. But there are more pieces, so the
 tree takes longer to build. 1024 bytes is in the middle.
 
----
+The cheating analysis and test results are in [TESTING.md](TESTING.md).
 
-## 6. Implementation summary
-
-**New vs borrowed**
-- **Written by me:** `offchain/merkle.py` (I first wrote it as a class, then simplified it to plain
-  functions), and the changes to comments, names and print messages in the other Python files.
-- **Written with Claude Code (Anthropic's AI coding assistant) from my design:** the contract,
-  `user.py`, `provider.py`, `chain.py`, `demo.py`, `bench.py` and the tests. I then had them
-  simplified, and I reviewed, tested and ran everything.
-- **Libraries used (no code copied):** forge-std (tests), web3.py (talking to the chain),
-  pycryptodome (AES-GCM).
-- **Ideas from known sources:** the 0/1 hash prefixes (Certificate Transparency, RFC 6962),
-  random spot checks (proofs of retrievability).
-
-**Challenges**
-- web3.py would not install on my default Python 3.15, so I used Python 3.12 with `uv`.
-- After rewriting `merkle.py` as a class, the other files broke (`module 'merkle' has no
-  attribute 'chunk'`), because they call plain functions. I went back to functions with the
-  same names.
-- Making the Python Merkle tree match the Solidity one byte for byte; `test/vectors.json` checks it.
-- `blockhash` only works for the last 256 blocks, which limits the length of a period.
-
-**Missing pieces**
-- The optional extension (editing the file during the deal) is not built.
-
-**Known limitations**
-- Whoever creates a block has a little influence over its hash, so the randomness is not perfect.
-- Random checks catch big losses quickly, but can miss very small ones (try
-  `--cheat-fraction 0.001`).
-- `claimFailure` has to be called by someone (a contract cannot start itself), so anyone may call it,
-  but the money always goes to Alice.
