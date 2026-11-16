@@ -7,7 +7,7 @@
 - every period the contract asks Bob to show a few **random pieces** of the file,
 - if Bob shows them, he gets paid for that period; if he cannot, Alice gets his deposit and her money back.
 
-Testing, the cheating analysis and storage overhead are in **[TESTING.md](TESTING.md)**.
+Testing, the cheating analysis and test results are in **[TESTING.md](TESTING.md)**.
 
 ---
 
@@ -22,11 +22,10 @@ offchain/chain.py         helpers: start the local blockchain, deploy the contra
 offchain/demo.py          the demo: one honest deal and one cheating deal
 offchain/bench.py         gas cost of each contract function, and a comparison of chunk sizes
 offchain/analysis.py      how often a cheating Bob is caught (theory vs real deals) + detection_graph.png
-offchain/overhead.py      how much extra storage and data the system adds for a file
 test/StorageMarket.t.sol  21 tests for the contract
 test/test_offchain.py     6 tests for the Python code (Merkle tree + full deals)
 test/vectors.json         a small test tree written by merkle.py, used by both test files
-TESTING.md                test results, cheating analysis, storage overhead
+TESTING.md                test results, cheating analysis
 detection_graph.png       the graph made by analysis.py
 sample_photo.png          an example file (1.33 MB) for the demo
 foundry.toml              Foundry settings
@@ -48,6 +47,7 @@ demo_data/       created when the demo runs: provider_inbox/ = Bob's encrypted c
 <p align="center">
   <img src="image.png" width="450">
 </p>
+
 ### Step 0: Start the blockchain
 `demo.py` starts a local test blockchain (anvil), where Alice and Bob each get 10,000 test ETH,
 and puts the contract on it.
@@ -86,7 +86,7 @@ accept and pay his 0.05 ETH deposit. (Otherwise Alice could set him up to fail a
    proof, and see if it ends at Alice's root.
 5. All correct: Bob gets **0.01 ETH** for this period.
 
-### Step 5: The happy ending
+### Step 5: The non-cheat ending
 After the last period, the contract also gives Bob his deposit back (deal state: **Completed**).
 Alice gets her file back and checks it:
 - `user.retrieve()`: rebuild the root and compare with the saved root, then `decrypt()` with her key
@@ -104,7 +104,7 @@ and he cannot fake them (a fake piece gives a different root). The deadline pass
 
 Because the deposit (0.05) is more than the whole payment (0.03), cheating always loses Bob money.
 <p align="center">
-  <img src="image-1.png" width="450">
+  <img src="image-1.png" width="700">
 </p>
 ---
 
@@ -112,7 +112,7 @@ Because the deposit (0.05) is more than the whole payment (0.03), cheating alway
 
 You need **Foundry** and **Python 3.10 to 3.13** (web3 does not install on 3.14 and newer).
 
-**1. Install Foundry** (once per computer), then open a new terminal:
+**1. Install Foundry** , then open a new terminal:
 ```bash
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
@@ -146,12 +146,7 @@ python offchain/demo.py --cheat-fraction 0.5       # Bob deletes half the file
 ```bash
 python offchain/bench.py                            # gas per function, chunk sizes
 python offchain/analysis.py                         # cheating analysis + detection_graph.png (3-4 minutes)
-python offchain/overhead.py --file sample_photo.png # storage overhead
 ```
-
-In every new terminal, run `source .venv/bin/activate` again before the `python` commands.
-If you see "something is already running on port 8545", run `pkill anvil`.
-
 ---
 
 ## 4. Design decisions
@@ -172,7 +167,6 @@ If you see "something is already running on port 8545", run `pkill anvil`.
 ## 5. Measurements
 
 From `python offchain/bench.py` (1 MB file, 4 checks per period).
-*Machine: (write your machine here)*
 
 **Gas per function** (1024-byte chunks):
 
@@ -198,3 +192,6 @@ tree takes longer to build. 1024 bytes is in the middle.
 
 The cheating analysis and test results are in [TESTING.md](TESTING.md).
 
+## 6. Sample Output
+
+![alt text](image-2.png)

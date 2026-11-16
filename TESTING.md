@@ -34,13 +34,13 @@ python offchain/analysis.py
 This runs real deals where Bob deletes part of the file, and counts how often he is caught
 (4 checks per period, 3 periods, 40 deals per row):
 
-| Bob deletes | theory: caught | experiment: caught |
-|---|---|---|
-| 2% | 21.1% | 13/40 = 32.5% |
-| 5% | 45.8% | 17/40 = 42.5% |
-| 10% | 71.6% | 24/40 = 60.0% |
-| 20% | 93.1% | 36/40 = 90.0% |
-| 50% | 100.0% | 40/40 = 100.0% |
+| Bob deletes | caught |
+|---|---|
+| 2% | 13/40 = 32.5% |
+| 5% | 17/40 = 42.5% |
+| 10% | 24/40 = 60.0% |
+| 20% | 36/40 = 90.0% |
+| 50% | 40/40 = 100.0% |
 
 - The more Bob deletes, the more often he is caught. Deleting half the file was caught every time.
 - The experiment is close to the theory; the small differences come from using only 40 random
