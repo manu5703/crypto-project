@@ -45,8 +45,9 @@ demo_data/       created when the demo runs: provider_inbox/ = Bob's encrypted c
 
 ## 2. How it works, step by step (and where in the code)
 
-![flowchart](image.png)
-
+<p align="center">
+  <img src="image.png" width="450">
+</p>
 ### Step 0: Start the blockchain
 `demo.py` starts a local test blockchain (anvil), where Alice and Bob each get 10,000 test ETH,
 and puts the contract on it.
@@ -102,8 +103,9 @@ and he cannot fake them (a fake piece gives a different root). The deadline pass
   (failed in period 0: 0.08, in period 1: 0.07, in period 2: 0.06). Deal state: **Failed**.
 
 Because the deposit (0.05) is more than the whole payment (0.03), cheating always loses Bob money.
-![flowchart2](image-1.png)
-
+<p align="center">
+  <img src="image-1.png" width="450">
+</p>
 ---
 
 ## 3. How to run
